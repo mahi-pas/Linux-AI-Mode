@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
+    <meta
+        http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'"
+    />
+    <meta
+        http-equiv="X-Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'"
+    />
+    <title>Copilot</title>
+    <link rel="stylesheet" href="styles/index.css" />
+    <script src="scripts/chat.js"></script>
+</head>
+  <body>
+    <div class="container">
+        <div class="header">
+            <h1>Copilot</h1>
+        <div class="response-content">
+            <p>Welcome to Copilot! How can I assist you today?</p>
+        </div>
+        <div class="input-container">
+            <input type="text" id="user-input" placeholder="Type your message..." />
+            <button id="send-button">Send</button>
+        </div>
+    </div>
+  </body>
+</html>
