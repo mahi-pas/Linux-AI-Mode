@@ -79,7 +79,7 @@ std::string LLMProvider::send_gemini_request(const std::string& message) {
     }
     
     std::string response;
-    std::string url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=" + api_keys.gemini_key;
+    std::string url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
     std::string json_data = build_gemini_request(message);
     
     // Debug logging
@@ -89,6 +89,7 @@ std::string LLMProvider::send_gemini_request(const std::string& message) {
     
     struct curl_slist* headers = nullptr;
     headers = curl_slist_append(headers, "Content-Type: application/json");
+    headers = curl_slist_append(headers, ("x-goog-api-key: " + api_keys.gemini_key).c_str());
     
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_data.c_str());
@@ -207,21 +208,12 @@ std::string LLMProvider::build_gemini_request(const std::string& message) {
     contents.append(content);
     root["contents"] = contents;
     
-    // Add generation config for better responses
+    // Add generation config with thinking config
     Json::Value generationConfig;
-    generationConfig["temperature"] = 0.7;
-    generationConfig["topK"] = 40;
-    generationConfig["topP"] = 0.95;
-    generationConfig["maxOutputTokens"] = 1024;
+    Json::Value thinkingConfig;
+    thinkingConfig["thinkingBudget"] = 0;
+    generationConfig["thinkingConfig"] = thinkingConfig;
     root["generationConfig"] = generationConfig;
-    
-    // Add safety settings to be less restrictive
-    Json::Value safetySettings(Json::arrayValue);
-    Json::Value safetySetting;
-    safetySetting["category"] = "HARM_CATEGORY_HARASSMENT";
-    safetySetting["threshold"] = "BLOCK_MEDIUM_AND_ABOVE";
-    safetySettings.append(safetySetting);
-    root["safetySettings"] = safetySettings;
     
     Json::StreamWriterBuilder builder;
     return Json::writeString(builder, root);
