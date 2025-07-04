@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Linux AI Mode
+Comment=Quick AI Assistant for Linux
+Exec=linux-ai-mode
+Icon=assistant
+Terminal=false
+Type=Application
+Categories=Utility;Office;
+Keywords=AI;Assistant;Chat;LLM;
+StartupNotify=true
+StartupWMClass=linux-ai-mode

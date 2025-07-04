@@ -1,3 +1,14 @@
+# Build directories
+build/
+build-*/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
 # Prerequisites
 *.d
 
@@ -8,6 +19,80 @@
 *.obj
 
 # Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+linux-ai-mode
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Kernel Module Compile Results
+*.mod*
+*.cmd
+.tmp_versions/
+modules.order
+Module.symvers
+Mkfile.old
+dkms.conf
+
+# CMake
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+
+# Config files (but keep example configs)
+config/*.conf
+!config/*.conf.example
+
+# User data and logs
+*.log
+logs/
+
+# API keys (security)
+api_keys.json
+.env
+
+# Package files
+*.deb
+*.rpm
+*.tar.gz
+*.tar.xz
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
 *.gch
 *.pch
 
