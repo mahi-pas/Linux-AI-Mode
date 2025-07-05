@@ -17,6 +17,7 @@ add_executable(linux-ai-mode
     src/LLMProvider.cpp
     src/ChatHistory.cpp
     src/Utils.cpp
+    src/MarkdownUtils.cpp
 )
 
 # Include directories

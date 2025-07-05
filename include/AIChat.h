@@ -8,6 +8,7 @@
 
 class LLMProvider;
 class ChatHistory;
+class MarkdownUtils;
 
 class AIChat {
 public:
@@ -25,6 +26,7 @@ private:
     GtkWidget* header_bar;
     GtkWidget* sidebar;
     GtkWidget* chat_area;
+    GtkWidget* chat_container;  // Container for all chat messages
     GtkWidget* input_box;
     GtkWidget* input_entry;
     GtkWidget* send_button;
@@ -49,6 +51,7 @@ private:
     static void on_new_chat_clicked(GtkButton* button, gpointer user_data);
     static void on_chat_selected(GtkListBox* box, GtkListBoxRow* row, gpointer user_data);
     static gboolean on_key_press(GtkEventControllerKey* controller, guint keyval, guint keycode, GdkModifierType state, gpointer user_data);
+    static void on_run_code_clicked(GtkButton* button, gpointer user_data);
     
     // UI setup methods
     void setup_window();
@@ -63,6 +66,7 @@ private:
     // Chat methods
     void send_message();
     void add_message_to_chat(const std::string& message, bool is_user);
+    void add_formatted_message_to_chat(const std::string& message, bool is_user);
     void start_new_chat();
     void load_chat(const std::string& chat_id);
     void update_history_sidebar();

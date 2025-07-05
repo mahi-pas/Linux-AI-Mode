@@ -294,3 +294,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **Made with ❤️ for the Linux community**
+
+
+
+** Ideas **
+- Maybe make a thing that executes terminal commands for you after an AI prompt, like 
+- "Install dolphin"
+or 
+"Make a directory that has this and write a file that does this"

@@ -2,6 +2,7 @@
 #include "LLMProvider.h"
 #include "ChatHistory.h"
 #include "Utils.h"
+#include "MarkdownUtils.h"
 #include <iostream>
 #include <thread>
 #include <json/json.h>
@@ -122,14 +123,21 @@ void AIChat::setup_chat_area() {
                                   GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
     gtk_widget_set_vexpand(chat_scrolled, TRUE);
     
+    // Create a container for chat messages
+    chat_container = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_widget_add_css_class(chat_container, "chat-container");
+    gtk_widget_set_margin_start(chat_container, 20);
+    gtk_widget_set_margin_end(chat_container, 20);
+    gtk_widget_set_margin_top(chat_container, 20);
+    gtk_widget_set_margin_bottom(chat_container, 20);
+    
+    gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(chat_scrolled), chat_container);
+    gtk_box_append(GTK_BOX(chat_area), chat_scrolled);
+    
+    // Keep the old text view for backward compatibility (hidden)
     chat_view = gtk_text_view_new();
     chat_buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(chat_view));
-    gtk_text_view_set_editable(GTK_TEXT_VIEW(chat_view), FALSE);
-    gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(chat_view), GTK_WRAP_WORD_CHAR);
-    gtk_widget_add_css_class(chat_view, "chat-view");
-    
-    gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(chat_scrolled), chat_view);
-    gtk_box_append(GTK_BOX(chat_area), chat_scrolled);
+    gtk_widget_set_visible(chat_view, FALSE);
     
     // Input area at the bottom
     setup_input_area();
@@ -275,6 +283,14 @@ void AIChat::setup_css() {
     g_object_unref(provider);
 }
 
+void AIChat::on_run_code_clicked(GtkButton* button, gpointer user_data) {
+    const char* code = static_cast<const char*>(g_object_get_data(G_OBJECT(button), "code"));
+    if (code) {
+        TerminalManager& terminal_manager = TerminalManager::get_instance();
+        terminal_manager.run_command(code);
+    }
+}
+
 void AIChat::on_send_clicked(GtkButton* button, gpointer user_data) {
     AIChat* chat = static_cast<AIChat*>(user_data);
     chat->send_message();
@@ -349,21 +365,124 @@ void AIChat::send_message() {
 }
 
 void AIChat::add_message_to_chat(const std::string& message, bool is_user) {
-    GtkTextIter end;
-    gtk_text_buffer_get_end_iter(chat_buffer, &end);
-    
-    std::string formatted_message = (is_user ? "You: " : "AI: ") + message + "\n\n";
-    gtk_text_buffer_insert(chat_buffer, &end, formatted_message.c_str(), -1);
+    // Use formatted message display for AI responses, simple for user messages
+    if (is_user) {
+        // Create a simple user message widget
+        GtkWidget* message_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+        gtk_widget_add_css_class(message_box, "message-row");
+        gtk_widget_add_css_class(message_box, "user-message-row");
+        
+        // Spacer to align user messages to the right
+        GtkWidget* spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+        gtk_widget_set_hexpand(spacer, TRUE);
+        gtk_box_append(GTK_BOX(message_box), spacer);
+        
+        // User message bubble
+        GtkWidget* user_bubble = gtk_frame_new(nullptr);
+        gtk_widget_add_css_class(user_bubble, "user-message");
+        
+        GtkWidget* user_label = gtk_label_new(message.c_str());
+        gtk_label_set_wrap(GTK_LABEL(user_label), TRUE);
+        gtk_label_set_wrap_mode(GTK_LABEL(user_label), PANGO_WRAP_WORD_CHAR);
+        gtk_widget_set_halign(user_label, GTK_ALIGN_START);
+        gtk_frame_set_child(GTK_FRAME(user_bubble), user_label);
+        
+        gtk_box_append(GTK_BOX(message_box), user_bubble);
+        gtk_box_append(GTK_BOX(chat_container), message_box);
+    } else {
+        add_formatted_message_to_chat(message, is_user);
+    }
     
     // Scroll to bottom
-    GtkTextMark* mark = gtk_text_buffer_get_insert(chat_buffer);
-    gtk_text_view_scroll_mark_onscreen(GTK_TEXT_VIEW(chat_view), mark);
+    GtkAdjustment* vadjustment = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(chat_scrolled));
+    gtk_adjustment_set_value(vadjustment, gtk_adjustment_get_upper(vadjustment));
+}
+
+void AIChat::add_formatted_message_to_chat(const std::string& message, bool is_user) {
+    // Create AI message container
+    GtkWidget* message_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    gtk_widget_add_css_class(message_box, "message-row");
+    gtk_widget_add_css_class(message_box, "ai-message-row");
+    
+    // AI message bubble
+    GtkWidget* ai_bubble = gtk_frame_new(nullptr);
+    gtk_widget_add_css_class(ai_bubble, "ai-message");
+    
+    GtkWidget* content_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_frame_set_child(GTK_FRAME(ai_bubble), content_box);
+    
+    // Extract code blocks from the message for run buttons
+    auto code_blocks = MarkdownUtils::extract_code_blocks(message);
+    
+    // Always show the full message with markdown formatting first
+    GtkWidget* text_widget = MarkdownUtils::create_formatted_text_widget(message);
+    gtk_box_append(GTK_BOX(content_box), text_widget);
+    
+    // Add interactive code blocks below the full message if any executable code exists
+    for (const auto& block : code_blocks) {
+        // Only add interactive widgets for executable code
+        if (block.language == "bash" || block.language == "sh" || 
+            block.language == "shell" || block.language == "terminal") {
+            
+            GtkWidget* code_actions_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+            gtk_widget_add_css_class(code_actions_box, "code-actions");
+            
+            // Add a small label to identify this code block
+            std::string code_preview = block.code;
+            if (code_preview.length() > 50) {
+                code_preview = code_preview.substr(0, 47) + "...";
+            }
+            // Remove newlines for preview
+            std::replace(code_preview.begin(), code_preview.end(), '\n', ' ');
+            
+            GtkWidget* code_label = gtk_label_new(("💻 " + code_preview).c_str());
+            gtk_widget_add_css_class(code_label, "code-preview");
+            gtk_label_set_ellipsize(GTK_LABEL(code_label), PANGO_ELLIPSIZE_END);
+            gtk_widget_set_hexpand(code_label, TRUE);
+            gtk_widget_set_halign(code_label, GTK_ALIGN_START);
+            
+            // Run button
+            GtkWidget* run_button = gtk_button_new_from_icon_name("media-playback-start-symbolic");
+            gtk_widget_add_css_class(run_button, "run-button");
+            gtk_widget_set_tooltip_text(run_button, "Run this command in terminal");
+            
+            // Store the code in the button's data
+            g_object_set_data_full(G_OBJECT(run_button), "code", 
+                                  g_strdup(block.code.c_str()), g_free);
+            
+            g_signal_connect(run_button, "clicked", G_CALLBACK(on_run_code_clicked), this);
+            
+            gtk_box_append(GTK_BOX(code_actions_box), code_label);
+            gtk_box_append(GTK_BOX(code_actions_box), run_button);
+            gtk_box_append(GTK_BOX(content_box), code_actions_box);
+        }
+    }
+    
+    gtk_box_append(GTK_BOX(message_box), ai_bubble);
+    
+    // Spacer to align AI messages to the left
+    GtkWidget* spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_widget_set_hexpand(spacer, TRUE);
+    gtk_box_append(GTK_BOX(message_box), spacer);
+    
+    gtk_box_append(GTK_BOX(chat_container), message_box);
+    
+    // Show all new widgets
+    gtk_widget_set_visible(message_box, TRUE);
 }
 
 void AIChat::start_new_chat() {
     current_chat_id = chat_history->create_new_chat(selected_llm);
     
-    // Clear chat view
+    // Clear chat container
+    GtkWidget* child = gtk_widget_get_first_child(chat_container);
+    while (child) {
+        GtkWidget* next = gtk_widget_get_next_sibling(child);
+        gtk_box_remove(GTK_BOX(chat_container), child);
+        child = next;
+    }
+    
+    // Also clear the old text buffer for compatibility
     gtk_text_buffer_set_text(chat_buffer, "", -1);
     
     // Update history sidebar
@@ -377,9 +496,18 @@ void AIChat::load_chat(const std::string& chat_id) {
     current_chat_id = chat_id;
     Chat chat = chat_history->get_chat(chat_id);
     
-    // Clear and populate chat view
+    // Clear chat container
+    GtkWidget* child = gtk_widget_get_first_child(chat_container);
+    while (child) {
+        GtkWidget* next = gtk_widget_get_next_sibling(child);
+        gtk_box_remove(GTK_BOX(chat_container), child);
+        child = next;
+    }
+    
+    // Clear old text buffer for compatibility
     gtk_text_buffer_set_text(chat_buffer, "", -1);
     
+    // Load messages with formatting
     for (const auto& msg : chat.messages) {
         add_message_to_chat(msg.content, msg.is_user);
     }
@@ -410,16 +538,42 @@ void AIChat::update_history_sidebar() {
 }
 
 void AIChat::show_typing_indicator() {
-    add_message_to_chat("Typing...", false);
+    // Create a typing indicator widget
+    GtkWidget* typing_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    gtk_widget_add_css_class(typing_box, "message-row");
+    gtk_widget_add_css_class(typing_box, "typing-indicator-row");
+    g_object_set_data(G_OBJECT(typing_box), "is-typing", GINT_TO_POINTER(1));
+    
+    GtkWidget* typing_bubble = gtk_frame_new(nullptr);
+    gtk_widget_add_css_class(typing_bubble, "typing-indicator");
+    
+    GtkWidget* typing_label = gtk_label_new("AI is typing...");
+    gtk_frame_set_child(GTK_FRAME(typing_bubble), typing_label);
+    
+    gtk_box_append(GTK_BOX(typing_box), typing_bubble);
+    
+    // Spacer to align to the left
+    GtkWidget* spacer = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_widget_set_hexpand(spacer, TRUE);
+    gtk_box_append(GTK_BOX(typing_box), spacer);
+    
+    gtk_box_append(GTK_BOX(chat_container), typing_box);
+    
+    // Scroll to bottom
+    GtkAdjustment* vadjustment = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(chat_scrolled));
+    gtk_adjustment_set_value(vadjustment, gtk_adjustment_get_upper(vadjustment));
 }
 
 void AIChat::hide_typing_indicator() {
-    // Remove the last "Typing..." message
-    GtkTextIter start, end;
-    gtk_text_buffer_get_end_iter(chat_buffer, &end);
-    gtk_text_buffer_get_iter_at_line(chat_buffer, &start, 
-                                    gtk_text_buffer_get_line_count(chat_buffer) - 2);
-    gtk_text_buffer_delete(chat_buffer, &start, &end);
+    // Remove typing indicator widgets
+    GtkWidget* child = gtk_widget_get_first_child(chat_container);
+    while (child) {
+        GtkWidget* next = gtk_widget_get_next_sibling(child);
+        if (g_object_get_data(G_OBJECT(child), "is-typing")) {
+            gtk_box_remove(GTK_BOX(chat_container), child);
+        }
+        child = next;
+    }
 }
 
 void AIChat::process_llm_response_async(const std::string& message) {
