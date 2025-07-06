@@ -49,6 +49,28 @@ void AIChat::on_activate(GtkApplication* app, gpointer user_data) {
     chat->setup_transparency();
     chat->setup_global_hotkey();
     chat->start_new_chat();
+    
+    // Test message with code blocks
+    std::string test_message = R"(Here's an example with code blocks:
+
+This is some regular text before the code block.
+
+```bash
+echo "Hello World"
+ls -la
+```
+
+More text after the first code block.
+
+```python
+print("This is Python code")
+for i in range(5):
+    print(f"Number: {i}")
+```
+
+And some final text after all code blocks.)";
+    
+    chat->add_message_to_chat(test_message, false);
 }
 
 void AIChat::on_startup(GtkApplication* app, gpointer user_data) {
@@ -411,16 +433,16 @@ void AIChat::add_formatted_message_to_chat(const std::string& message, bool is_u
     GtkWidget* content_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     gtk_frame_set_child(GTK_FRAME(ai_bubble), content_box);
     
-    // Extract code blocks from the message for run buttons
-    auto code_blocks = MarkdownUtils::extract_code_blocks(message);
-    
-    // Always show the full message with markdown formatting first
+    // Show the full message with integrated markdown formatting (including code blocks)
     GtkWidget* text_widget = MarkdownUtils::create_formatted_text_widget(message);
     gtk_box_append(GTK_BOX(content_box), text_widget);
     
-    // Add interactive code blocks below the full message if any executable code exists
+    // Extract code blocks only for creating run buttons
+    auto code_blocks = MarkdownUtils::extract_code_blocks(message);
+    
+    // Add run buttons for executable code blocks
     for (const auto& block : code_blocks) {
-        // Only add interactive widgets for executable code
+        // Only add run buttons for executable code
         if (block.language == "bash" || block.language == "sh" || 
             block.language == "shell" || block.language == "terminal") {
             
